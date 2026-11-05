@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.presentation.middlewares.tenant_middleware import TenantMiddleware
 from src.presentation.api.v1.routers.health import router as health_router
+from src.presentation.api.v1.routers.auth import router as auth_router
+from src.presentation.api.v1.routers.employees import router as employees_router
 
 app = FastAPI(
     title="Staff Attendance & Dining SaaS API",
@@ -27,6 +29,8 @@ app.add_middleware(TenantMiddleware)
 
 # Include Routers
 app.include_router(health_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(employees_router, prefix="/api/v1")
 
 
 @app.get("/", tags=["Root"])
