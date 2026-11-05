@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.shared.infrastructure.config import settings
 from src.shared.infrastructure.middlewares.tenant_middleware import TenantMiddleware
+from src.shared.infrastructure.middlewares.idempotency_middleware import IdempotencyMiddleware
 from src.contexts.iam.presentation.router import router as iam_router
 from src.contexts.workforce.presentation.router import router as workforce_router
 from src.contexts.dining.presentation.router import router as dining_router
@@ -26,6 +27,9 @@ app.add_middleware(
 
 # Multi-tenant isolation
 app.add_middleware(TenantMiddleware)
+
+# Distributed idempotency protection
+app.add_middleware(IdempotencyMiddleware)
 
 # Bounded Context Routers
 app.include_router(iam_router, prefix="/api/v1")

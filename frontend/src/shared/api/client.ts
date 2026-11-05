@@ -19,10 +19,22 @@ export const setAuthContext = (token: string | null, tenantId: string | null) =>
   activeTenantId = tenantId;
 };
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const method = (options.method || 'GET').toUpperCase();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -34,6 +46,11 @@ export async function apiClient<T>(
 
   if (activeTenantId) {
     headers['X-Tenant-ID'] = activeTenantId;
+  }
+
+  // Idempotency protection for mutations
+  if (['POST', 'PUT', 'PATCH'].includes(method) && !headers['X-Idempotency-Key']) {
+    headers['X-Idempotency-Key'] = generateUUID();
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
