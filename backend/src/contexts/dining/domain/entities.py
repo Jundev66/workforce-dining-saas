@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import uuid
 
-from src.shared.domain.base import AggregateRoot
+from src.shared.domain.base import AggregateRoot, utc_now
 from src.contexts.dining.domain.value_objects import MealType, MealStatus
 from src.contexts.dining.domain.events import (
     MealRecordedDomainEvent,
@@ -30,7 +30,7 @@ class MealRecord(AggregateRoot):
         self.badge_code = badge_code.strip().upper()
         self.status = status
         self.notes = notes
-        self.consumed_at = consumed_at or datetime.now(timezone.utc)
+        self.consumed_at = consumed_at or utc_now()
 
     @classmethod
     def record_approved(

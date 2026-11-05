@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import uuid
 
-from src.shared.domain.base import AggregateRoot
+from src.shared.domain.base import AggregateRoot, utc_now
 from src.contexts.iam.domain.value_objects import TenantSlug, EmailAddress, UserRole
 from src.contexts.iam.domain.events import TenantRegisteredDomainEvent
 
@@ -22,8 +22,8 @@ class Tenant(AggregateRoot):
         self.name = name.strip()
         self.slug = slug
         self.is_active = is_active
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.created_at = created_at or utc_now()
+        self.updated_at = updated_at or utc_now()
 
     @classmethod
     def create(cls, name: str, slug: str, admin_email: Optional[str] = None) -> "Tenant":
@@ -69,8 +69,8 @@ class User(AggregateRoot):
         self.full_name = full_name.strip()
         self.role = role
         self.is_active = is_active
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.created_at = created_at or utc_now()
+        self.updated_at = updated_at or utc_now()
 
     @classmethod
     def create(

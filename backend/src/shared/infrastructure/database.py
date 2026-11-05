@@ -35,7 +35,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         tenant_id = get_current_tenant_id()
         if tenant_id:
             await session.execute(
-                text("SET LOCAL app.current_tenant_id = :tenant_id"),
+                text("SELECT set_config('app.current_tenant_id', :tenant_id, true)"),
                 {"tenant_id": tenant_id},
             )
         try:

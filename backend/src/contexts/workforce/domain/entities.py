@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 import uuid
 
-from src.shared.domain.base import AggregateRoot
+from src.shared.domain.base import AggregateRoot, utc_now
 from src.contexts.workforce.domain.value_objects import (
     DocumentId,
     BadgeCode,
@@ -44,8 +44,8 @@ class Employee(AggregateRoot):
         self.email = email.lower().strip() if email else None
         self.phone = phone.strip() if phone else None
         self.status = status
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.created_at = created_at or utc_now()
+        self.updated_at = updated_at or utc_now()
 
     @property
     def full_name(self) -> str:
@@ -124,13 +124,13 @@ class Employee(AggregateRoot):
             self.email = email.lower().strip() if email else None
         if phone is not None:
             self.phone = phone.strip() if phone else None
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = utc_now()
 
     def change_status(self, new_status: EmployeeStatus) -> None:
         if self.status != new_status:
             prev = self.status.value
             self.status = new_status
-            self.updated_at = datetime.now(timezone.utc)
+            self.updated_at = utc_now()
             self.record_event(
                 EmployeeStatusChangedDomainEvent(
                     employee_id=self.id,

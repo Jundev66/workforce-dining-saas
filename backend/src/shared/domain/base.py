@@ -4,6 +4,11 @@ from typing import Any, List
 import uuid
 
 
+def utc_now() -> datetime:
+    """Returns a naive UTC datetime compatible with PostgreSQL asyncpg without timezone offset errors."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 @dataclass(frozen=True)
 class ValueObject:
     """Base class for all immutable Value Objects."""
@@ -14,7 +19,7 @@ class ValueObject:
 class DomainEvent:
     """Base class for all Domain Events."""
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    occurred_on: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    occurred_on: datetime = field(default_factory=utc_now)
 
 
 class AggregateRoot:
