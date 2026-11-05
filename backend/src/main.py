@@ -7,6 +7,12 @@ from src.shared.infrastructure.middlewares.idempotency_middleware import Idempot
 from src.contexts.iam.presentation.router import router as iam_router
 from src.contexts.workforce.presentation.router import router as workforce_router
 from src.contexts.dining.presentation.router import router as dining_router
+from src.contexts.dining.infrastructure.realtime.dining_event_subscriber import (
+    register_dining_subscribers,
+)
+
+# Wire domain event subscribers
+register_dining_subscribers()
 
 app = FastAPI(
     title="Workforce Attendance & Dining SaaS API",

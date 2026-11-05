@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from src.shared.domain.event_bus import app_event_bus
 from src.contexts.dining.application.use_cases.scan_meal_badge_use_case import ScanMealBadgeUseCase
 from src.contexts.dining.application.dtos import ScanMealBadgeCommand, MealScanResultDTO
 from src.contexts.dining.infrastructure.persistence.repositories import SQLAlchemyMealRepository
@@ -32,6 +33,7 @@ class ScanMealBadgeController:
         use_case = ScanMealBadgeUseCase(
             meal_repo=meal_repo,
             employee_repo=employee_repo,
+            event_bus=app_event_bus,
         )
         try:
             return await use_case.execute(

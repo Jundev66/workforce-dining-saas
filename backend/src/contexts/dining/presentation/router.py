@@ -18,8 +18,14 @@ from src.contexts.dining.presentation.controllers.get_dining_metrics_controller 
 from src.contexts.dining.presentation.controllers.forecast_dining_demand_controller import (
     ForecastDiningDemandController,
 )
+from src.contexts.dining.presentation.controllers.dining_websocket_controller import (
+    DiningWebSocketController,
+)
 
 router = APIRouter(prefix="/dining", tags=["Dining - Meal Tracking & AI Automation"])
+
+# Real-Time Multi-Tenant WebSocket Route
+router.add_api_websocket_route("/ws", DiningWebSocketController.handle)
 
 router.add_api_route(
     "/scan",
