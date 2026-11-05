@@ -14,12 +14,11 @@ from pathlib import Path
 # Add backend directory to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.core.config import settings
-from src.core.database import Base
-# Import models so Alembic registers them in metadata
-from src.infrastructure.persistence.models.tenant_model import TenantModel
-from src.infrastructure.persistence.models.user_model import UserModel
-from src.infrastructure.persistence.models.employee_model import EmployeeModel
+from src.shared.infrastructure.config import settings
+from src.shared.infrastructure.database import Base
+# Import models from bounded contexts so Alembic registers them in metadata
+from src.contexts.iam.infrastructure.persistence.models import TenantModel, UserModel
+from src.contexts.workforce.infrastructure.persistence.models import EmployeeModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
