@@ -1,187 +1,64 @@
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr, Field
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.shared.infrastructure.database import get_db_session
-from src.shared.infrastructure.security import decode_access_token
-from src.shared.infrastructure.tenant_context import set_current_tenant_id
-from src.contexts.workforce.domain.value_objects import EmployeeStatus
-from src.contexts.workforce.infrastructure.persistence.repositories import SQLAlchemyEmployeeRepository
-from src.contexts.workforce.application.use_cases import (
-    CreateEmployeeUseCase,
-    ListEmployeesUseCase,
-    GetEmployeeDetailUseCase,
-    UpdateEmployeeUseCase,
-    DeleteEmployeeUseCase,
+from fastapi import APIRouter, status
+from src.contexts.workforce.presentation.controllers.common import get_employee_repo, get_current_user
+from src.contexts.workforce.application.dtos import EmployeeDTO, PaginatedEmployeesDTO
+from src.contexts.workforce.presentation.controllers.create_employee_controller import (
+    CreateEmployeeController,
 )
-from src.contexts.workforce.application.dtos import (
-    CreateEmployeeCommand,
-    UpdateEmployeeCommand,
-    EmployeeDTO,
-    PaginatedEmployeesDTO,
+from src.contexts.workforce.presentation.controllers.list_employees_controller import (
+    ListEmployeesController,
+)
+from src.contexts.workforce.presentation.controllers.get_employee_detail_controller import (
+    GetEmployeeDetailController,
+)
+from src.contexts.workforce.presentation.controllers.update_employee_controller import (
+    UpdateEmployeeController,
+)
+from src.contexts.workforce.presentation.controllers.delete_employee_controller import (
+    DeleteEmployeeController,
 )
 
 router = APIRouter(prefix="/employees", tags=["Workforce - Employee Management"])
-security_scheme = HTTPBearer(auto_error=True)
 
+# Register Single-Action Controller endpoints
+router.add_api_route(
+    "",
+    CreateEmployeeController.handle,
+    methods=["POST"],
+    response_model=EmployeeDTO,
+    status_code=status.HTTP_201_CREATED,
+    summary="Onboard new employee",
+)
 
-class EmployeeCreateRequest(BaseModel):
-    first_name: str = Field(..., min_length=1, max_length=100)
-    last_name: str = Field(..., min_length=1, max_length=100)
-    document_id: str = Field(..., min_length=3, max_length=50)
-    department: str = Field(default="General", max_length=100)
-    position: str = Field(default="Employee", max_length=100)
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(default=None, max_length=50)
-    badge_code: Optional[str] = Field(default=None, max_length=100)
+router.add_api_route(
+    "",
+    ListEmployeesController.handle,
+    methods=["GET"],
+    response_model=PaginatedEmployeesDTO,
+    summary="List paginated employees",
+)
 
+router.add_api_route(
+    "/{employee_id}",
+    GetEmployeeDetailController.handle,
+    methods=["GET"],
+    response_model=EmployeeDTO,
+    summary="Get employee profile",
+)
 
-class EmployeeUpdateRequest(BaseModel):
-    first_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    last_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    department: Optional[str] = Field(default=None, max_length=100)
-    position: Optional[str] = Field(default=None, max_length=100)
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(default=None, max_length=50)
-    status: Optional[str] = None
+router.add_api_route(
+    "/{employee_id}",
+    UpdateEmployeeController.handle,
+    methods=["PUT"],
+    response_model=EmployeeDTO,
+    summary="Update employee profile",
+)
 
+router.add_api_route(
+    "/{employee_id}",
+    DeleteEmployeeController.handle,
+    methods=["DELETE"],
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete employee",
+)
 
-def get_employee_repo(db: AsyncSession = Depends(get_db_session)) -> SQLAlchemyEmployeeRepository:
-    return SQLAlchemyEmployeeRepository(db)
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
-) -> Dict[str, Any]:
-    payload = decode_access_token(credentials.credentials)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    tenant_id = payload.get("tenant_id")
-    if not tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token missing tenant context",
-        )
-    set_current_tenant_id(tenant_id)
-    return payload
-
-
-@router.post("", response_model=EmployeeDTO, status_code=status.HTTP_201_CREATED)
-async def create_employee(
-    data: EmployeeCreateRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    repo: SQLAlchemyEmployeeRepository = Depends(get_employee_repo),
-):
-    use_case = CreateEmployeeUseCase(repo)
-    try:
-        return await use_case.execute(
-            CreateEmployeeCommand(
-                tenant_id=current_user["tenant_id"],
-                first_name=data.first_name,
-                last_name=data.last_name,
-                document_id=data.document_id,
-                department=data.department,
-                position=data.position,
-                email=str(data.email) if data.email else None,
-                phone=data.phone,
-                badge_code=data.badge_code,
-            )
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-@router.get("", response_model=PaginatedEmployeesDTO)
-async def list_employees(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    department: Optional[str] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status"),
-    search: Optional[str] = Query(None),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    repo: SQLAlchemyEmployeeRepository = Depends(get_employee_repo),
-):
-    status_enum = None
-    if status_filter:
-        try:
-            status_enum = EmployeeStatus(status_filter.lower())
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status. Must be one of {[s.value for s in EmployeeStatus]}",
-            )
-    use_case = ListEmployeesUseCase(repo)
-    return await use_case.execute(
-        skip=skip,
-        limit=limit,
-        department=department,
-        status=status_enum,
-        search=search,
-    )
-
-
-@router.get("/{employee_id}", response_model=EmployeeDTO)
-async def get_employee_detail(
-    employee_id: str,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    repo: SQLAlchemyEmployeeRepository = Depends(get_employee_repo),
-):
-    use_case = GetEmployeeDetailUseCase(repo)
-    try:
-        return await use_case.execute(employee_id)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
-
-@router.put("/{employee_id}", response_model=EmployeeDTO)
-async def update_employee(
-    employee_id: str,
-    data: EmployeeUpdateRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    repo: SQLAlchemyEmployeeRepository = Depends(get_employee_repo),
-):
-    status_enum = None
-    if data.status:
-        try:
-            status_enum = EmployeeStatus(data.status.lower())
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status. Must be one of {[s.value for s in EmployeeStatus]}",
-            )
-    use_case = UpdateEmployeeUseCase(repo)
-    try:
-        return await use_case.execute(
-            UpdateEmployeeCommand(
-                employee_id=employee_id,
-                first_name=data.first_name,
-                last_name=data.last_name,
-                department=data.department,
-                position=data.position,
-                email=str(data.email) if data.email else None,
-                phone=data.phone,
-                status=status_enum,
-            )
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-@router.delete("/{employee_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_employee(
-    employee_id: str,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    repo: SQLAlchemyEmployeeRepository = Depends(get_employee_repo),
-):
-    use_case = DeleteEmployeeUseCase(repo)
-    try:
-        await use_case.execute(employee_id)
-        return None
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+__all__ = ["router", "get_employee_repo", "get_current_user"]
