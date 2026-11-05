@@ -19,6 +19,7 @@ from src.shared.infrastructure.database import Base
 # Import models from bounded contexts so Alembic registers them in metadata
 from src.contexts.iam.infrastructure.persistence.models import TenantModel, UserModel
 from src.contexts.workforce.infrastructure.persistence.models import EmployeeModel
+from src.contexts.dining.infrastructure.persistence.models import MealRecordModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
