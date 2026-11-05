@@ -12,6 +12,7 @@ import {
   useAiForecastQuery,
   useScanMealMutation,
 } from '../api/diningApi';
+import { useDiningWebSocket } from '../api/useDiningWebSocket';
 import { MealScanResult } from '../model/diningTypes';
 import { Input } from '../../../shared/components/Input';
 import { Button } from '../../../shared/components/Button';
@@ -25,6 +26,7 @@ export const DiningDashboard: React.FC = () => {
   const { data: metrics, isLoading: isMetricsLoading } = useDiningMetricsQuery();
   const { data: forecast, isLoading: isForecastLoading } = useAiForecastQuery();
   const scanMutation = useScanMealMutation();
+  const { isConnected: isWsConnected, lastLiveScan, clearLastLiveScan } = useDiningWebSocket();
 
   const handleScan = async () => {
     if (!badgeCode.trim()) return;
@@ -55,10 +57,50 @@ export const DiningDashboard: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 1. QR Scan Terminal Card */}
       <View style={styles.card} testID="terminal-scan-card">
-        <Text style={styles.cardTitle}>Terminal de Escaneo - Comedor</Text>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardTitle}>Terminal de Escaneo - Comedor</Text>
+          <View
+            style={[
+              styles.wsStatusBadge,
+              isWsConnected ? styles.wsStatusOnline : styles.wsStatusOffline,
+            ]}
+            testID="ws-status-indicator"
+          >
+            <View
+              style={[
+                styles.wsStatusDot,
+                { backgroundColor: isWsConnected ? colors.success : colors.textMuted },
+              ]}
+            />
+            <Text
+              style={[
+                styles.wsStatusText,
+                { color: isWsConnected ? colors.success : colors.textMuted },
+              ]}
+            >
+              {isWsConnected ? 'En Vivo' : 'Desconectado'}
+            </Text>
+          </View>
+        </View>
+
         <Text style={styles.cardSubtitle}>
           Ingresá o escaneá el código de credencial / QR del personal
         </Text>
+
+        {/* Real-time broadcast incoming alert */}
+        {lastLiveScan ? (
+          <TouchableOpacity
+            style={styles.realtimeAlertBanner}
+            onPress={clearLastLiveScan}
+            activeOpacity={0.8}
+            testID="realtime-meal-toast"
+          >
+            <Text style={styles.realtimeAlertText}>
+              🔔 Escaneo en tiempo real: Credencial {lastLiveScan.badge_code} ({lastLiveScan.meal_type})
+            </Text>
+            <Text style={styles.realtimeAlertDismiss}>✕</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={styles.mealTypeSelector}>
           {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
@@ -226,6 +268,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  wsStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 5,
+  },
+  wsStatusOnline: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  },
+  wsStatusOffline: {
+    backgroundColor: colors.surfaceSubtle,
+  },
+  wsStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  wsStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  realtimeAlertBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  realtimeAlertText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+    flex: 1,
+  },
+  realtimeAlertDismiss: {
+    fontSize: 14,
+    color: colors.textMuted,
+    paddingLeft: 8,
   },
   cardTitle: {
     fontSize: 18,
