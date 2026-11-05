@@ -1,22 +1,30 @@
+from typing import Optional
 from src.contexts.iam.domain.entities import Tenant, User, UserRole
 from src.contexts.iam.domain.ports import TenantRepository, UserRepository
 from src.contexts.iam.application.dtos import RegisterTenantCommand, AuthResponseDTO
+from src.shared.domain.event_bus import EventBus
 from src.shared.infrastructure.security import hash_password, create_access_token
 
 
 class RegisterTenantUseCase:
     """Use Case responsible exclusively for tenant registration and initial admin user creation."""
 
-    def __init__(self, tenant_repo: TenantRepository, user_repo: UserRepository):
+    def __init__(
+        self,
+        tenant_repo: TenantRepository,
+        user_repo: UserRepository,
+        event_bus: Optional[EventBus] = None,
+    ):
         self.tenant_repo = tenant_repo
         self.user_repo = user_repo
+        self.event_bus = event_bus
 
     async def execute(self, cmd: RegisterTenantCommand) -> AuthResponseDTO:
         existing_tenant = await self.tenant_repo.get_by_slug(cmd.tenant_slug)
         if existing_tenant:
             raise ValueError(f"A tenant with slug '{cmd.tenant_slug}' already exists")
 
-        # 1. Create Tenant Aggregate Root
+        # 1. Create Tenant Aggregate Root (records TenantRegisteredDomainEvent)
         tenant = Tenant.create(
             name=cmd.tenant_name,
             slug=cmd.tenant_slug,
@@ -35,7 +43,13 @@ class RegisterTenantUseCase:
         )
         created_user = await self.user_repo.create(admin_user)
 
-        # 3. Issue JWT Token
+        # 3. Publish Domain Events via EventBus
+        if self.event_bus:
+            events = tenant.pull_domain_events() + admin_user.pull_domain_events()
+            if events:
+                await self.event_bus.publish(events)
+
+        # 4. Issue JWT Token
         token = create_access_token(
             subject=created_user.id,
             tenant_id=created_tenant.id,
