@@ -1,0 +1,32 @@
+appId: host.exp.exponent
+---
+- hideKeyboard
+
+# 1. Assert initial login screen is rendered
+- assertVisible: "Iniciar Sesión"
+- assertVisible: "Gestión de Personal & Comedores"
+
+# 2. Toggle to Register Tenant Form
+- tapOn:
+    id: "btn-switch-register"
+- assertVisible: "Registrar Empresa"
+- assertVisible: "Nombre de la Empresa *"
+
+# 3. Toggle back to Login Form
+- tapOn:
+    id: "btn-switch-login"
+- assertVisible: "Iniciar Sesión"
+
+# 4. Fill credentials in Login Form
+- tapOn:
+    id: "input-email"
+- inputText: "admin@empresa.com"
+- hideKeyboard
+
+- tapOn:
+    id: "input-password"
+- inputText: "SuperSecret123!"
+- hideKeyboard
+
+# 5. Assert inputs received text
+- assertVisible: "admin@empresa.com"
