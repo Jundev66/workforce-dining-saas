@@ -23,6 +23,37 @@ export const Badge: React.FC<BadgeProps> = ({ status }) => {
           text: colors.warning,
           label: 'Licencia',
         };
+      case 'pending':
+        return {
+          bg: '#fef3c7', // amber-100
+          text: '#b45309', // amber-700
+          label: 'Pendiente Sync',
+        };
+      case 'failed_retryable':
+        return {
+          bg: '#ffedd5', // orange-100
+          text: '#c2410c', // orange-700
+          label: 'Reintentando...',
+        };
+      case 'conflict':
+      case 'conflict_action_required':
+        return {
+          bg: '#fee2e2', // red-100
+          text: '#b91c1c', // red-700
+          label: 'Conflicto (Requiere Acción)',
+        };
+      case 'blocked_by_dependency':
+        return {
+          bg: '#f3e8ff', // purple-100
+          text: '#7e22ce', // purple-700
+          label: 'Bloqueado por Padre',
+        };
+      case 'synced':
+        return {
+          bg: colors.successLight,
+          text: colors.success,
+          label: 'Sincronizado',
+        };
       case 'inactive':
       default:
         return {
@@ -54,6 +85,5 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
-    textTransform: 'uppercase',
   },
 });

@@ -33,6 +33,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "test": "node --test src/shared/offline/__tests__/*.test.js",
     "test:e2e": "playwright test",
     "test:maestro": "maestro test .maestro/auth_flow.yaml"
   },
