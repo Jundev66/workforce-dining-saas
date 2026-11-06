@@ -36,7 +36,51 @@ export function initOnlineManager(): void {
 }
 
 /**
- * Creates and configures the offline-first QueryClient with AsyncStorage persistence.
+ * Fallback in-memory map to guarantee zero-crash execution
+ * if native storage modules are unavailable or misconfigured in development.
+ */
+const memoryStore = new Map<string, string>();
+
+export const resilientStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+      const val = await AsyncStorage.getItem(key);
+      return val ?? memoryStore.get(key) ?? null;
+    } catch {
+      return memoryStore.get(key) ?? null;
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      memoryStore.set(key, value);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+        return;
+      }
+      await AsyncStorage.setItem(key, value);
+    } catch {
+      // Memory fallback already recorded
+    }
+  },
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      memoryStore.delete(key);
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+        return;
+      }
+      await AsyncStorage.removeItem(key);
+    } catch {
+      // Memory fallback already cleared
+    }
+  },
+};
+
+/**
+ * Creates and configures the offline-first QueryClient with resilient storage persistence.
  */
 export function createOfflineQueryClient(): QueryClient {
   const client = new QueryClient({
@@ -55,16 +99,16 @@ export function createOfflineQueryClient(): QueryClient {
     },
   });
 
-  const asyncStoragePersister = createAsyncStoragePersister({
-    storage: AsyncStorage,
+  const persister = createAsyncStoragePersister({
+    storage: resilientStorage,
     throttleTime: 1000,
   });
 
   persistQueryClient({
     queryClient: client,
-    persister: asyncStoragePersister,
+    persister,
     maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    buster: 'v2.0-workforce',
+    buster: 'v2.1-workforce',
   });
 
   return client;
