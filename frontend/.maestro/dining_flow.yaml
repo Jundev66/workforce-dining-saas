@@ -1,0 +1,21 @@
+appId: host.exp.exponent
+---
+- hideKeyboard
+
+# 1. Switch to Dining & AI Module
+- tapOn:
+    id: "tab-dining"
+- assertVisible: "Terminal de Escaneo (Comedor)"
+
+# 2. Enter Badge code for lunch scanning
+- tapOn:
+    id: "input-scan-badge"
+- inputText: "BADGE-CARLITOS"
+- hideKeyboard
+
+# 3. Request Meal Authorization
+- tapOn:
+    id: "btn-scan-meal"
+
+# 4. Verify AI Demand Forecast section presence
+- assertVisible: "Proyección de Demanda (IA)"

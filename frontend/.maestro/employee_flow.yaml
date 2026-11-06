@@ -1,0 +1,59 @@
+appId: host.exp.exponent
+---
+- hideKeyboard
+
+# 1. Login to enter main application dashboard
+- tapOn:
+    id: "input-email"
+- inputText: "admin@empresa.com"
+- hideKeyboard
+
+- tapOn:
+    id: "input-password"
+- inputText: "SuperSecret123!"
+- hideKeyboard
+
+- tapOn: "Ingresar al Sistema"
+
+# 2. Assert navigation header and workforce tab
+- assertVisible: "Staff & Dining SaaS"
+- assertVisible: "👥 Gestión de Personal"
+
+# 3. Open Create Employee Modal
+- tapOn:
+    id: "btn-open-create-employee"
+- assertVisible: "Nuevo Empleado"
+
+# 4. Fill Employee Details
+- tapOn:
+    id: "input-employee-firstname"
+- inputText: "Carlos"
+
+- tapOn:
+    id: "input-employee-lastname"
+- inputText: "Tevez"
+
+- tapOn:
+    id: "input-employee-document"
+- inputText: "DOC-998811"
+
+- tapOn:
+    id: "input-employee-department"
+- inputText: "Operaciones"
+
+- tapOn:
+    id: "input-employee-position"
+- inputText: "Líder de Turno"
+
+- tapOn:
+    id: "input-employee-badge"
+- inputText: "BADGE-CARLITOS"
+- hideKeyboard
+
+# 5. Submit Employee Onboarding
+- tapOn:
+    id: "btn-submit-employee"
+
+# 6. Assert optimistic update in Employee list
+- assertVisible: "Carlos Tevez"
+- assertVisible: "Líder de Turno"
