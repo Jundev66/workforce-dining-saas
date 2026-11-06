@@ -18,15 +18,14 @@ import { EmployeeDetailModal } from './src/features/employees/ui/EmployeeDetailM
 import { DiningDashboard } from './src/features/dining/ui/DiningDashboard';
 import { Employee } from './src/features/employees/model/employeeTypes';
 import { colors } from './src/shared/theme/colors';
+import { initOnlineManager, createOfflineQueryClient } from './src/shared/offline/offlineManager';
+import { OfflineBanner } from './src/shared/components/OfflineBanner';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 1000 * 30,
-    },
-  },
-});
+// Initialize network reachability listeners
+initOnlineManager();
+
+// Create resilient offline-first QueryClient with AsyncStorage persistence
+const queryClient = createOfflineQueryClient();
 
 function MainScreen() {
   const { isAuthenticated, isHydrated, hydrateSession, user, logout } = useAuthStore();
@@ -50,6 +49,7 @@ function MainScreen() {
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.authContainer} testID="auth-screen">
+        <OfflineBanner />
         <View style={styles.authContent}>
           {authView === 'login' ? (
             <LoginForm onSwitchToRegister={() => setAuthView('register')} />
@@ -63,6 +63,7 @@ function MainScreen() {
 
   return (
     <SafeAreaView style={styles.appContainer} testID="dashboard-screen">
+      <OfflineBanner />
       {/* Navigation Header */}
       <View style={styles.navbar}>
         <View>
