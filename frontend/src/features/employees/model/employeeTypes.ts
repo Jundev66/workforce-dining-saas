@@ -1,3 +1,5 @@
+import { SyncStatus } from '../../../shared/offline/syncLedger';
+
 export interface Employee {
   id: string;
   tenant_id: string;
@@ -13,6 +15,10 @@ export interface Employee {
   phone?: string | null;
   created_at?: string;
   updated_at?: string;
+  // Offline sync & audit metadata
+  sync_status?: SyncStatus;
+  sync_error?: string | null;
+  sync_transaction_id?: string;
 }
 
 export interface PaginatedEmployees {

@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../../shared/api/client';
+import { apiClient, ApiError } from '../../../shared/api/client';
 import { Employee, PaginatedEmployees } from '../model/employeeTypes';
 import { EmployeeFormData } from '../model/employeeSchemas';
+import { syncLedger } from '../../../shared/offline/syncLedger';
 
 export const employeeKeys = {
   all: ['employees'] as const,
@@ -51,26 +52,48 @@ export const useCreateEmployeeMutation = () => {
   return useMutation({
     mutationKey: ['createEmployee'],
     mutationFn: async (data: EmployeeFormData) => {
-      return apiClient<Employee>('/employees', {
-        method: 'POST',
-        body: JSON.stringify({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          document_id: data.documentId,
-          department: data.department,
-          position: data.position,
-          email: data.email || null,
-          phone: data.phone || null,
-          badge_code: data.badgeCode || null,
-        }),
+      const tempId = `temp-${Date.now()}`;
+      const payload = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        document_id: data.documentId,
+        department: data.department,
+        position: data.position,
+        email: data.email || null,
+        phone: data.phone || null,
+        badge_code: data.badgeCode || null,
+      };
+
+      // Register transaction in the persistent Outbox Ledger (SSOT)
+      const tx = await syncLedger.enqueue({
+        entityType: 'employee',
+        tempEntityId: tempId,
+        action: 'CREATE',
+        endpoint: '/employees',
+        httpMethod: 'POST',
+        payload,
+        autoProcess: false, // Prevents background double-dispatch while this mutation runs
       });
+
+      // Execute via the SSOT Outbox with stable X-Idempotency-Key
+      try {
+        const result = await syncLedger.executeTransaction(tx);
+        return {
+          ...result,
+          _tempId: tempId,
+          _txId: tx.id,
+        };
+      } catch (err) {
+        throw err;
+      }
     },
     onMutate: async (newEmployeeData: EmployeeFormData) => {
       await queryClient.cancelQueries({ queryKey: employeeKeys.lists() });
       const previousQueries = queryClient.getQueriesData<PaginatedEmployees>({ queryKey: employeeKeys.lists() });
 
+      const tempId = `temp-${Date.now()}`;
       const optimisticEmployee: Employee = {
-        id: `temp-${Date.now()}`,
+        id: tempId,
         tenant_id: 'pending-sync',
         first_name: newEmployeeData.firstName,
         last_name: newEmployeeData.lastName,
@@ -82,6 +105,7 @@ export const useCreateEmployeeMutation = () => {
         email: newEmployeeData.email || null,
         phone: newEmployeeData.phone || null,
         status: 'active',
+        sync_status: 'PENDING',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -95,16 +119,55 @@ export const useCreateEmployeeMutation = () => {
         };
       });
 
-      return { previousQueries };
+      return { previousQueries, tempId };
     },
-    onError: (_err, _variables, context) => {
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
+    onError: (err: any, _variables, context) => {
+      // NON-DESTRUCTIVE ROLLBACK:
+      // If it's a conflict or business rule failure (400, 409, 422), do NOT wipe local state!
+      const status = err instanceof ApiError ? err.status : err?.status || 0;
+      const message = err.message || 'Error al sincronizar empleado';
+
+      if (context?.tempId) {
+        queryClient.setQueriesData<PaginatedEmployees>({ queryKey: employeeKeys.lists() }, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((emp) => {
+              if (emp.id === context.tempId) {
+                return {
+                  ...emp,
+                  sync_status: (status === 409 || status === 422 || status === 400)
+                    ? 'CONFLICT_ACTION_REQUIRED'
+                    : 'FAILED_RETRYABLE',
+                  sync_error: message,
+                };
+              }
+              return emp;
+            }),
+          };
         });
       }
     },
-    onSettled: () => {
+    onSuccess: (savedEmployee: any, _variables, context) => {
+      const targetTempId = savedEmployee?._tempId || context?.tempId;
+      if (targetTempId) {
+        queryClient.setQueriesData<PaginatedEmployees>({ queryKey: employeeKeys.lists() }, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((emp) => {
+              if (emp.id === targetTempId) {
+                return {
+                  ...savedEmployee,
+                  sync_status: 'SYNCED',
+                  sync_transaction_id: savedEmployee?._txId,
+                };
+              }
+              return emp;
+            }),
+          };
+        });
+      }
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
     },
   });

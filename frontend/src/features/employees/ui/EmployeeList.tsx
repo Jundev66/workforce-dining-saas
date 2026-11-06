@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Employee } from '../model/employeeTypes';
 import { useEmployeesQuery } from '../api/employeeApi';
+import { useSyncTransactions } from '../../../shared/offline/useSyncLedger';
 import { EmployeeCard } from './EmployeeCard';
 import { Input } from '../../../shared/components/Input';
 import { colors } from '../../../shared/theme/colors';
@@ -22,13 +23,63 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
   onSelectEmployee,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { transactions } = useSyncTransactions();
 
   const { data, isLoading, isError, refetch, isRefetching } = useEmployeesQuery({
     search: searchTerm.length >= 2 ? searchTerm : undefined,
   });
 
-  const employees = data?.items || [];
-  const total = data?.total || 0;
+  // Filter employee drafts that are not yet confirmed in the backend
+  const activeDrafts: Employee[] = useMemo(() => {
+    return transactions
+      .filter(
+        (tx) =>
+          tx.entityType === 'employee' &&
+          tx.status !== 'SYNCED' &&
+          tx.status !== 'DISCARDED'
+      )
+      .map((tx) => {
+        const p = tx.payload || {};
+        return {
+          id: tx.tempEntityId,
+          tenant_id: 'local-draft',
+          first_name: p.first_name || '',
+          last_name: p.last_name || '',
+          full_name:
+            `${p.first_name || ''} ${p.last_name || ''}`.trim() ||
+            'Empleado Borrador',
+          document_id: p.document_id || '',
+          department: p.department || 'General',
+          position: p.position || 'Operador',
+          badge_code: p.badge_code || 'EMP-SYNC',
+          status: 'active',
+          sync_status: tx.status,
+          sync_error: tx.lastError?.message || null,
+          sync_transaction_id: tx.id,
+        };
+      });
+  }, [transactions]);
+
+  const serverItems = data?.items || [];
+
+  // Merge drafts with server items, avoiding duplicates
+  const employees = useMemo(() => {
+    const list = [...activeDrafts];
+    for (const item of serverItems) {
+      if (
+        !list.some(
+          (d) =>
+            d.id === item.id ||
+            (item.document_id && d.document_id === item.document_id)
+        )
+      ) {
+        list.push(item);
+      }
+    }
+    return list;
+  }, [activeDrafts, serverItems]);
+
+  const total = (data?.total || 0) + activeDrafts.length;
 
   const renderItem: ListRenderItem<Employee> = useCallback(
     ({ item }) => (
@@ -44,7 +95,9 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Nómina de Empleados</Text>
-          <Text style={styles.subtitle}>{total} registrados</Text>
+          <Text style={styles.subtitle}>
+            {total} registrados {activeDrafts.length > 0 ? `(${activeDrafts.length} en dispositivo)` : ''}
+          </Text>
         </View>
       </View>
 
@@ -56,12 +109,12 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
         style={styles.searchBar}
       />
 
-      {isLoading ? (
+      {isLoading && employees.length === 0 ? (
         <View style={styles.centerContainer} testID="loading-employees">
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando nómina...</Text>
         </View>
-      ) : isError ? (
+      ) : isError && employees.length === 0 ? (
         <View style={styles.centerContainer} testID="error-employees">
           <Text style={styles.errorText}>Error al cargar los empleados.</Text>
         </View>
@@ -71,6 +124,7 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
           data={employees}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           initialNumToRender={10}
           maxToRenderPerBatch={10}
@@ -82,15 +136,12 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
               onRefresh={() => {
                 refetch();
               }}
-              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer} testID="empty-employees-notice">
-              <Text style={styles.emptyText}>No se encontraron empleados.</Text>
-              <Text style={styles.emptySubtext}>
-                Registrá tu primer colaborador para comenzar el seguimiento.
-              </Text>
+            <View style={styles.emptyContainer} testID="empty-employees">
+              <Text style={styles.emptyText}>No se encontraron empleados</Text>
             </View>
           }
         />
@@ -102,8 +153,8 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: colors.background,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   header: {
     flexDirection: 'row',
@@ -117,21 +168,21 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.textMuted,
     marginTop: 2,
   },
   searchBar: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    paddingVertical: 40,
   },
   loadingText: {
     marginTop: 12,
@@ -139,23 +190,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   errorText: {
-    color: colors.danger,
     fontSize: 14,
-    fontWeight: '500',
+    color: colors.danger,
   },
   emptyContainer: {
-    padding: 32,
+    paddingVertical: 40,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  emptySubtext: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 6,
   },
 });
