@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     DATABASE_URL: Optional[str] = None
 
+    # AI & Multi-Agent Gateway Configuration (OpenAI Compatible, e.g. biz / Ollama / OpenAI)
+    LLM_BASE_URL: str = "http://127.0.0.1:8000/v1"
+    LLM_API_KEY: str = "biz_live_-egS5FuuHFcpOrfiL7MCaTi6E4gLTLohhKxuOwvhf5M"
+    LLM_MODEL: str = "qwen3:8b"
+
     @property
     def async_database_url(self) -> str:
         if self.DATABASE_URL:

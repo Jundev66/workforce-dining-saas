@@ -125,6 +125,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           style={styles.registerBtn}
         />
       )}
+
+      <Button
+        testID="btn-demo-login"
+        title="⚡ Acceso Rápido Demo"
+        variant="secondary"
+        onPress={() => {
+          setSession(
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMjIyMjIyMi0yMjIyLTQyMjItYTIyMi0yMjIyMjIyMjIyMjIiLCJ0ZW5hbnRfaWQiOiIxMTExMTExMS0xMTExLTQxMTEtYTExMS0xMTExMTExMTExMTEiLCJyb2xlIjoiYWRtaW4iLCJleHAiOjE3OTQwNjcxMjAsImlhdCI6MTc5Mzk4MDcyMCwiZnVsbF9uYW1lIjoiQ2FybG9zIFJvZHJpZ3VleiAoQWRtaW4pIn0.6oZa8X238qe721mri65B3f5sJHJguE7xusrT651youQ',
+            {
+              userId: '22222222-2222-4222-a222-222222222222',
+              tenantId: '11111111-1111-4111-a111-111111111111',
+              fullName: 'Carlos Rodriguez (Admin)',
+              email: 'admin@acme.com',
+              role: 'admin',
+            }
+          );
+          if (onSuccess) onSuccess();
+        }}
+        style={styles.registerBtn}
+      />
     </View>
   );
 };
