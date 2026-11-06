@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export interface ApiErrorResponse {
   detail: string;
 }
@@ -9,7 +11,9 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+const DEFAULT_PORT = '8001';
+const DEFAULT_HOST = Platform.OS === 'android' ? `http://10.0.2.2:${DEFAULT_PORT}` : `http://localhost:${DEFAULT_PORT}`;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || `${DEFAULT_HOST}/api/v1`;
 
 let authToken: string | null = null;
 let activeTenantId: string | null = null;
