@@ -54,7 +54,11 @@ export const DiningDashboard: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       {/* 1. QR Scan Terminal Card */}
       <View style={styles.card} testID="terminal-scan-card">
         <View style={styles.cardHeaderRow}>
@@ -259,15 +263,23 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
+    maxWidth: 800,
+    width: '100%',
+    alignSelf: 'center',
   },
   card: {
     backgroundColor: colors.surface,
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e2e8f0',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -392,18 +404,24 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
+    rowGap: 10,
     marginBottom: 16,
   },
   metricCard: {
-    flex: 1,
-    minWidth: 140,
-    backgroundColor: colors.surface,
-    padding: 14,
-    borderRadius: 10,
+    width: '48.5%',
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#e2e8f0',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   metricVal: {
     fontSize: 24,
